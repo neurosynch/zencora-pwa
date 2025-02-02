@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Neural Meditation</title>
 
-  <!-- Manifest link (NEW) -->
+  <!-- Link to the PWA manifest (update path if needed) -->
   <link rel="manifest" href="./manifest.json" />
 
   <style>
@@ -25,7 +25,7 @@
       background: #111; border-radius: 12px;
       padding: 20px; margin-bottom: 20px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      /* Optional fade-in animation */
+      /* Optional fade-in effect */
       opacity: 0;
       transition: opacity 0.4s ease-in-out;
     }
@@ -41,8 +41,6 @@
     audio {
       width: 100%; margin: 10px 0;
     }
-
-    /* Controls at the bottom */
     .controls {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: #000; border-top: 1px solid #333;
@@ -63,30 +61,23 @@
     button.active {
       background: #444; font-weight: 600;
     }
-
-    /* Neurotune menu row */
     .advanced-row {
-      display: none;
-      justify-content: center;
-      gap: 10px;
+      display: none; /* Hidden by default, shown when Neurotune is toggled */
+      justify-content: center; gap: 10px;
       margin-bottom: 10px;
       flex-wrap: wrap;
-      /* Optional height transition */
+      /* Optional smooth transition for expand/collapse */
       transition: max-height 0.3s ease;
       overflow: hidden;
       max-height: 0;
     }
     .advanced-row.show {
       display: flex;
-      max-height: 500px; /* or enough to display your buttons */
+      max-height: 500px; /* Enough to show all advanced buttons */
     }
-
-    /* Intensity slider row */
     .intensity-row {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 10px;
-      align-items: center;
+      display: flex; justify-content: center;
+      margin-bottom: 10px; align-items: center;
     }
     .intensity-row label {
       margin-right: 10px;
@@ -102,10 +93,9 @@
   <div id="tracks"></div>
 
   <div class="controls">
+    <!-- Fullscreen & Neurotune -->
     <div class="control-row">
-      <!-- Fullscreen Toggle -->
       <button onclick="toggleFullscreen()">Fullscreen</button>
-      <!-- Neurotune Toggle -->
       <button id="neurotuneBtn" onclick="toggleNeurotuneMenu(this)">Neurotune</button>
     </div>
 
@@ -124,12 +114,12 @@
 
     <div class="intensity-row">
       <label for="intensitySlider">Intensity:</label>
-      <input type="range" id="intensitySlider" min="0.01" max="0.3" step="0.01" value="0.1" oninput="updateIntensity(this.value)">
+      <input type="range" id="intensitySlider" min="0.01" max="0.3"
+             step="0.01" value="0.1" oninput="updateIntensity(this.value)">
     </div>
   </div>
 
   <script>
-    // Temporary track list with original Squarespace links
     const tracks = [
       {
         title: "Heavy Rain with Heavy Wind and Theta Waves for Relaxation",
@@ -226,7 +216,7 @@
       activeButton = button;
       activeMode = null;
 
-      // <20 => treat as modulating freq
+      // If freq < 20 => treat as AM modulator for 40 Hz
       if (freq < 20) {
         playAMFrequency(freq, 40, intensity);
       } else {
@@ -255,7 +245,6 @@
           playAMFrequency(20, 40, intensity);
           break;
         case 'sleep':
-          // Example mod freq
           playAMModulatedTone(40, 0.3, intensity, 0.02);
           break;
         case 'focus':
@@ -304,7 +293,7 @@
       modOsc.frequency.value = freq;
 
       let modGain = audioContext.createGain();
-      modGain.gain.value = 0.5 * gainValue; 
+      modGain.gain.value = 0.5 * gainValue;
 
       modOsc.connect(modGain);
       modGain.connect(carrierGain.gain);
@@ -328,7 +317,6 @@
       connectAllChainsTo(finalGain, chain2);
 
       finalGain.connect(audioContext.destination);
-
       startAllOscillators(chain1);
       startAllOscillators(chain2);
 
@@ -349,12 +337,12 @@
       modOsc.frequency.value = freq;
 
       let modGain = audioContext.createGain();
-      modGain.gain.value = 0.5 * intensity; 
+      modGain.gain.value = 0.5 * intensity;
 
       modOsc.connect(modGain);
       modGain.connect(carrierGain.gain);
-
       carrier.connect(carrierGain);
+
       return [carrier, carrierGain, modOsc, modGain];
     }
 
@@ -426,7 +414,7 @@
 
       let pulseOsc = audioContext.createOscillator();
       pulseOsc.type = 'sine';
-      pulseOsc.frequency.value = 0.5; // slow pulse
+      pulseOsc.frequency.value = 0.5;
       let pulseGain = audioContext.createGain();
       pulseGain.gain.value = 0.1;
       pulseOsc.connect(pulseGain);
@@ -460,18 +448,18 @@
       });
     }
 
-    // Fullscreen Toggle
+    // Request fullscreen function
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
-          console.log("Error enabling full-screen mode: " + err.message);
+          console.log("Error attempting to enable full-screen mode:", err);
         });
       } else {
         document.exitFullscreen();
       }
     }
 
-    // Render tracks
+    // Render track elements
     const container = document.getElementById('tracks');
     tracks.forEach(track => {
       const div = document.createElement('div');
@@ -490,13 +478,13 @@
     });
   </script>
 
-  <!-- Register the Service Worker (NEW) -->
+  <!-- Register the service worker (for PWA install/offline) -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-          .then(reg => console.log('Service Worker registered!', reg))
-          .catch(err => console.error('Service Worker registration failed', err));
+          .then(reg => console.log('Service Worker registered:', reg))
+          .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
   </script>
