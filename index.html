@@ -1,40 +1,477 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenCora PWA</title>
-    <link rel="manifest" href="manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log("Service Worker Registered"))
-                .catch(error => console.log("Service Worker Error:", error));
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <title>Neural Meditation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0;
+            background: #000; color: #fff;
         }
-    </script>
+
+        h1 {
+            text-align: center; margin: 0; padding: 20px; 
+            font-weight: 600; color: #fff;
+        }
+
+        #tracks {
+            padding: 20px; max-width: 600px; margin: 0 auto;
+        }
+
+        .track {
+            background: #111; border-radius: 12px;
+            padding: 20px; margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .track h3 {
+            margin-top: 0; font-size: 1.1rem; font-weight: 500; color: #fff;
+        }
+
+        .track img {
+            width: 100%; border-radius: 10px; margin-bottom: 10px;
+        }
+
+        audio {
+            width: 100%; margin: 10px 0;
+        }
+
+        /* Controls at the bottom */
+        .controls {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #000; border-top: 1px solid #333; 
+            padding: 10px; box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+
+        .control-row {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+        }
+
+        button {
+            background: #222; color: #fff; border: none; 
+            padding: 8px 15px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        button.active {
+            background: #444; font-weight: 600;
+        }
+
+        .advanced-row {
+            display: none; /* Hidden by default, shown when Neurotune is toggled */
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .intensity-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .intensity-row label {
+            margin-right: 10px;
+        }
+
+        .intensity-row input[type="range"] {
+            width: 150px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to ZenCora Journey PWA</h1>
-    <button id="installPWA">Install App</button>
+    <h1>Neural Meditation</h1>
+    <div id="tracks"></div>
+    
+    <div class="controls">
+        <!-- Add a button to request fullscreen -->
+        <div class="control-row">
+            <button onclick="toggleFullscreen()">Fullscreen</button>
+            <button id="neurotuneBtn" onclick="toggleNeurotuneMenu(this)">Neurotune</button>
+        </div>
+
+        <!-- Advanced Neurotune Modes -->
+        <div class="advanced-row" id="advancedRow">
+            <button onclick="toggleFreq(40, this)">Gamma (40Hz)</button>
+            <button onclick="toggleFreq(10, this)">Alpha (10Hz)</button>
+            <button onclick="toggleFreq(5, this)">Theta (5Hz)</button>
+            <button onclick="toggleAdvancedMode('meditation', this)">Meditation</button>
+            <button onclick="toggleAdvancedMode('sleep', this)">Sleep</button>
+            <button onclick="toggleAdvancedMode('focus', this)">Focus</button>
+            <button onclick="toggleAdvancedMode('random', this)">Random</button>
+            <button onclick="toggleAdvancedMode('meditationAid', this)">Meditation Aid</button>
+            <button onclick="toggleAdvancedMode('energyFlow', this)">Energy Flow</button>
+        </div>
+
+        <div class="intensity-row">
+            <label for="intensitySlider">Intensity:</label>
+            <input type="range" id="intensitySlider" min="0.01" max="0.3" step="0.01" value="0.1" oninput="updateIntensity(this.value)">
+        </div>
+    </div>
 
     <script>
-        let deferredPrompt;
-        const installBtn = document.getElementById("installPWA");
+        const tracks = [
+            {
+                title: "Heavy Rain with Heavy Wind and Theta Waves for Relaxation",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675ada0cc2447e555559d4aa/1734007319039/heavy+rain+and+wind+theta+alpha.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/86d0c166-2b19-450f-85b5-a682c1f76f16/art.jpeg"
+            },
+            {
+                title: "Dreamy Day Music For Focus With Ocean Sounds And Gamma Waves",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675ada2f8b7f1e0e495acf97/1734007355368/Healing+with+water+3+min+bowl.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/95497a5b-174f-4095-854e-c894ad2b62eb/healingwater.jpeg"
+            },
+            {
+                title: "Dreamy Day Music For Focus With Ocean Sounds And Gamma Waves",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675ada6824cf2f1894eb253d/1734007411529/Focus+with+Waves+of+gamma+and+alpha.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/141a9780-4350-4a38-b658-118239cb3283/oceanic.jpeg"
+            },
+            {
+                title: "Clearing for Positivity with Gamma and Alpha",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675adacd1ef62d732ddf48fe/1734007516159/clearing+for+positivity+with+gamma+and+alpha.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/0dbcfce2-cb95-4220-8846-36b5ca8848e7/clearingforpositivitywithgammaandalpha.jpeg"
+            },
+            {
+                title: "900 seconds of Forest Water with birds and gamma",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675adb2e4ac0771d870abcd2/1734007603088/900+seconds+of+forest+water+with+birds+and+gamma.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/90175ff9-e931-4b24-99e6-4183216612fd/forest+water+birds+and+gamma.jpeg"
+            },
+            // ... (Include all other tracks as before)
+            {
+                title: "45MindestressWhaleHB-10",
+                mp3: "https://static1.squarespace.com/static/666f7215b055ae28568e549b/t/675ad9b3e34fc629958d3b87/1734007224747/45MindestressWhaleHB-10.mp3",
+                art: "https://images.squarespace-cdn.com/content/v1/666f7215b055ae28568e549b/bf1a44de-655c-492f-9a15-2627e58536d0/whales.jpeg"
+            }
+        ];
 
-        window.addEventListener("beforeinstallprompt", (event) => {
-            event.preventDefault();
-            deferredPrompt = event;
-            installBtn.style.display = "block";
+        let audioContext = null;
+        let activeButton = null;
+        let activeMode = null; 
+        let currentNodes = [];
+        let currentGainNodes = [];
+        let neurotuneVisible = false;
+        let intensity = 0.1; // Default intensity
 
-            installBtn.addEventListener("click", () => {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === "accepted") {
-                        console.log("User installed the app");
-                    }
-                    deferredPrompt = null;
-                });
+        function initAudioIfNeeded() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            }
+        }
+
+        function stopAllOscillators() {
+            currentNodes.forEach(node => {
+                if (node.stop) node.stop();
             });
+            currentNodes = [];
+            currentGainNodes = [];
+        }
+
+        function resetActiveButtons() {
+            const buttons = document.querySelectorAll('.advanced-row button');
+            buttons.forEach(b => b.classList.remove('active'));
+            activeButton = null;
+            activeMode = null;
+        }
+
+        function toggleNeurotuneMenu(btn) {
+            neurotuneVisible = !neurotuneVisible;
+            const advRow = document.getElementById('advancedRow');
+            if (neurotuneVisible) {
+                advRow.style.display = 'flex';
+                btn.classList.add('active');
+            } else {
+                advRow.style.display = 'none';
+                btn.classList.remove('active');
+                stopAllOscillators();
+                resetActiveButtons();
+            }
+        }
+
+        function toggleFreq(freq, button) {
+            initAudioIfNeeded();
+            
+            if (activeButton === button) {
+                stopAllOscillators();
+                button.classList.remove('active');
+                activeButton = null;
+                return;
+            }
+
+            stopAllOscillators();
+            resetActiveButtons();
+
+            button.classList.add('active');
+            activeButton = button;
+            activeMode = null;
+
+            if (freq < 20) {
+                playAMFrequency(freq, 40, intensity);
+            } else {
+                playSingleFrequency(freq, intensity);
+            }
+        }
+
+        function toggleAdvancedMode(mode, button) {
+            initAudioIfNeeded();
+
+            if (activeMode === mode) {
+                stopAllOscillators();
+                button.classList.remove('active');
+                activeMode = null;
+                activeButton = null;
+                return;
+            }
+
+            stopAllOscillators();
+            resetActiveButtons();
+
+            button.classList.add('active');
+            activeMode = mode;
+            activeButton = button;
+
+            switch (mode) {
+                case 'meditation':
+                    playAMFrequency(20, 40, intensity);
+                    break;
+                case 'sleep':
+                    playAMModulatedTone(40, 0.3, intensity, 0.02);
+                    break;
+                case 'focus':
+                    playDualFrequencies(40, 5, intensity);
+                    break;
+                case 'random':
+                    const freqs = [5,10,40,15,20];
+                    const f1 = freqs[Math.floor(Math.random()*freqs.length)];
+                    const f2 = freqs[Math.floor(Math.random()*freqs.length)];
+                    playDualFrequencies(f1, f2, intensity);
+                    break;
+                case 'meditationAid':
+                    playAMFrequency(10, 40, intensity);
+                    break;
+                case 'energyFlow':
+                    playEnergyFlow(10, 40, intensity);
+                    break;
+            }
+        }
+
+        function playSingleFrequency(freq, gainValue=0.1) {
+            let osc = audioContext.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            let gain = audioContext.createGain();
+            gain.gain.value = gainValue;
+
+            osc.connect(gain).connect(audioContext.destination);
+            osc.start();
+
+            currentNodes.push(osc, gain);
+            currentGainNodes.push(gain);
+        }
+
+        function playAMFrequency(freq, carrierFreq, gainValue=0.1) {
+            let carrier = audioContext.createOscillator();
+            carrier.type = 'sine';
+            carrier.frequency.value = carrierFreq;
+
+            let carrierGain = audioContext.createGain();
+            carrierGain.gain.value = gainValue;
+
+            let modOsc = audioContext.createOscillator();
+            modOsc.type = 'sine';
+            modOsc.frequency.value = freq;
+
+            let modGain = audioContext.createGain();
+            modGain.gain.value = 0.5 * gainValue; 
+
+            modOsc.connect(modGain);
+            modGain.connect(carrierGain.gain);
+            carrier.connect(carrierGain).connect(audioContext.destination);
+
+            carrier.start();
+            modOsc.start();
+
+            currentNodes.push(carrier, carrierGain, modOsc, modGain);
+            currentGainNodes.push(carrierGain);
+        }
+
+        function playDualFrequencies(freq1, freq2, gainValue=0.1) {
+            let finalGain = audioContext.createGain();
+            finalGain.gain.value = gainValue;
+
+            let chain1 = (freq1 < 20) ? createAMChain(freq1, 40) : createSimpleChain(freq1);
+            let chain2 = (freq2 < 20) ? createAMChain(freq2, 40) : createSimpleChain(freq2);
+
+            connectAllChainsTo(finalGain, chain1);
+            connectAllChainsTo(finalGain, chain2);
+
+            finalGain.connect(audioContext.destination);
+
+            startAllOscillators(chain1);
+            startAllOscillators(chain2);
+
+            currentNodes.push(...chain1, ...chain2, finalGain);
+            currentGainNodes.push(finalGain);
+        }
+
+        function createAMChain(freq, carrierFreq) {
+            let carrier = audioContext.createOscillator();
+            carrier.type = 'sine';
+            carrier.frequency.value = carrierFreq;
+
+            let carrierGain = audioContext.createGain();
+            carrierGain.gain.value = intensity;
+
+            let modOsc = audioContext.createOscillator();
+            modOsc.type = 'sine';
+            modOsc.frequency.value = freq;
+
+            let modGain = audioContext.createGain();
+            modGain.gain.value = 0.5 * intensity; 
+
+            modOsc.connect(modGain);
+            modGain.connect(carrierGain.gain);
+
+            carrier.connect(carrierGain);
+
+            return [carrier, carrierGain, modOsc, modGain];
+        }
+
+        function createSimpleChain(freq) {
+            let o = audioContext.createOscillator();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            let g = audioContext.createGain();
+            g.gain.value = 0.5; 
+            o.connect(g);
+            return [o, g];
+        }
+
+        function connectAllChainsTo(finalNode, chain) {
+            let lastG = chain.filter(n => n instanceof GainNode).pop();
+            if (lastG) {
+                lastG.connect(finalNode);
+            }
+        }
+
+        function startAllOscillators(chain) {
+            chain.forEach(node => {
+                if (node instanceof OscillatorNode) {
+                    node.start();
+                }
+            });
+        }
+
+        function playAMModulatedTone(carrierFreq, modFreq, baseGain=0.1, modDepth=0.02) {
+            let carrier = audioContext.createOscillator();
+            carrier.frequency.value = carrierFreq;
+
+            let carrierGain = audioContext.createGain();
+            carrierGain.gain.value = baseGain;
+
+            let modulator = audioContext.createOscillator();
+            modulator.frequency.value = modFreq;
+
+            let modGain = audioContext.createGain();
+            modGain.gain.value = modDepth; 
+
+            modulator.connect(modGain);
+            modGain.connect(carrierGain.gain);
+            carrier.connect(carrierGain).connect(audioContext.destination);
+
+            carrier.start();
+            modulator.start();
+
+            currentNodes.push(carrier, carrierGain, modulator, modGain);
+            currentGainNodes.push(carrierGain);
+        }
+
+        function playEnergyFlow(freq, carrierFreq, gainValue=0.1) {
+            let carrier = audioContext.createOscillator();
+            carrier.type = 'sine';
+            carrier.frequency.value = carrierFreq;
+
+            let carrierGain = audioContext.createGain();
+            carrierGain.gain.value = gainValue;
+
+            let modOsc = audioContext.createOscillator(); 
+            modOsc.type = 'sine';
+            modOsc.frequency.value = freq;
+
+            let modGain = audioContext.createGain();
+            modGain.gain.value = 0.5 * gainValue; 
+            modOsc.connect(modGain);
+            modGain.connect(carrierGain.gain);
+
+            let pulseOsc = audioContext.createOscillator();
+            pulseOsc.type = 'sine';
+            pulseOsc.frequency.value = 0.5;
+            let pulseGain = audioContext.createGain();
+            pulseGain.gain.value = 0.1; 
+            pulseOsc.connect(pulseGain);
+            pulseGain.connect(carrierGain.gain);
+
+            let panner = audioContext.createStereoPanner();
+            panner.pan.value = 0;
+            let panOsc = audioContext.createOscillator();
+            panOsc.type = 'sine';
+            panOsc.frequency.value = 0.5;
+            let panGain = audioContext.createGain();
+            panGain.gain.value = 1; 
+            panOsc.connect(panGain);
+            panGain.connect(panner.pan);
+
+            carrier.connect(carrierGain).connect(panner).connect(audioContext.destination);
+
+            carrier.start();
+            modOsc.start();
+            pulseOsc.start();
+            panOsc.start();
+
+            currentNodes.push(carrier, carrierGain, modOsc, modGain, pulseOsc, pulseGain, panner, panOsc, panGain);
+            currentGainNodes.push(carrierGain);
+        }
+
+        function updateIntensity(value) {
+            intensity = parseFloat(value);
+            currentGainNodes.forEach(gainNode => {
+                gainNode.gain.value = intensity; 
+            });
+        }
+
+        // Request fullscreen function
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Error attempting to enable full-screen mode: " + err.message);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Create track elements
+        const container = document.getElementById('tracks');
+        tracks.forEach(track => {
+            const div = document.createElement('div');
+            div.className = 'track';
+            div.innerHTML = `
+                <h3>${track.title}</h3>
+                <img src="${track.art}" alt="${track.title}">
+                <audio controls src="${track.mp3}"></audio>
+            `;
+            container.appendChild(div);
         });
     </script>
 </body>
